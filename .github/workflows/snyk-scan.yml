@@ -1,0 +1,41 @@
+name: Snyk Security Scan 
+on: 
+push: 
+branches: [ main ] 
+pull_request: 
+branches: [ main ] 
+jobs: 
+  security: 
+    runs-on: ubuntu-latest 
+    steps: 
+    - name: Checkout Repository 
+      uses: actions/checkout@v4 
+ 
+    # (Optional) Setup your language environment if Snyk Action doesn't handle it 
+    # For Node.js, you might need this to install dependencies 
+    - name: Use Node.js 
+      uses: actions/setup-node@v4 
+      with: 
+        node-version: '20' 
+        cache: 'npm' # Use appropriate package manager cache 
+ 
+    - name: Install Dependencies 
+      run: npm install # Adjust based on your package manager (e.g., yarn install, pip install) 
+ 
+    - name: Run Snyk to check for vulnerabilities 
+      # Use the action that corresponds to your project type (e.g., /node@master for Node.js) 
+      uses: snyk/actions/node@master 
+      env: 
+        # Use the secret you created in Step 2 for authentication 
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
+      with: 
+        # 'test' scans for vulnerabilities and fails the build if issues are found 
+        command: test 
+        # Optionally add arguments, e.g., to report results to GitHub Code Scanning 
+        args: --sarif-file-output=snyk.sarif --file=package-lock.json  
+ 
+    - name: Upload Snyk scan results to GitHub Code Scanning 
+      if: always() # Ensures this step runs even if the snyk test fails 
+      uses: github/codeql-action/upload-sarif@v3 
+      with: 
+        sarif_file: snyk.sarif
