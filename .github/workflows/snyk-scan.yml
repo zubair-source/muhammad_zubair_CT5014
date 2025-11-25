@@ -45,7 +45,7 @@ jobs:
 
       # 6. Upload SARIF (fork-safe)
       - name: Upload SARIF to GitHub Code Scanning
-        if: github.repository == 'zubair-source/muhammad_zubair_CT5014' && github.event_name != 'pull_request'
+        if: github.repository == 'zubair-source/muhammad_zubair_CT5014' && github.event_name == 'push'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk.sarif
