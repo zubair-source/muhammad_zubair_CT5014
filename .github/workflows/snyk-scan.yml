@@ -1,11 +1,15 @@
 name: Snyk Security Scan
 
+permissions:
+  contents: read
+  security-events: read
+
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch: # optional manual trigger
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   security:
@@ -32,7 +36,7 @@ jobs:
           args: --sarif-file-output=snyk.sarif --file=package-lock.json
 
       - name: Upload Snyk scan results to GitHub Code Scanning
-        if: always()
+        if: github.repository == 'zubair-source/muhammad_zubair_CT5014'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk.sarif
