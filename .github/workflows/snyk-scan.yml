@@ -2,7 +2,8 @@ name: DevSecOps CI/CD Pipeline
 
 permissions:
   contents: read
-  security-events: read
+  security-events: write   # needed for future if you enable Code Scanning
+  actions: read
 
 on:
   push:
@@ -14,28 +15,24 @@ on:
 jobs:
   test-and-scan:
     runs-on: ubuntu-latest
+
     steps:
-      # 1. Checkout repository
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # 3. Install dependencies
-      - name: Install Dependencies
+      - name: Install dependencies
         run: npm install
 
-      # 4. Run Jest tests
-      - name: Run Tests
+      - name: Run tests
         run: npm test
 
-      # 5. Run Snyk scan
-      - name: Run Snyk Test
+      - name: Run Snyk Scan
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -43,34 +40,31 @@ jobs:
           command: test
           args: --sarif-file-output=snyk.sarif --file=package-lock.json
 
-      # 6. Upload SARIF (fork-safe)
-      - name: Upload SARIF to GitHub Code Scanning
-        if: github.repository == 'zubair-source/muhammad_zubair_CT5014' && github.event_name == 'push'
-        uses: github/codeql-action/upload-sarif@v4
+      # ✔ Always works — SARIF saved as artifact  
+      - name: Upload SARIF as artifact
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: snyk.sarif
+          name: snyk-sarif
+          path: snyk.sarif
 
   docker-build-and-push:
     needs: test-and-scan
     runs-on: ubuntu-latest
+
+    if: github.event_name == 'push'   # Only build/push Docker on push, not PRs
+
     steps:
-      # 1. Checkout repository
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Login to DockerHub
-      - name: Docker Login
+      - name: Docker login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 3. Build Docker image
-      - name: Build Docker Image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-hello-world:latest .
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-hello-world:latest .
 
-      # 4. Push Docker image to DockerHub
-      - name: Push Docker Image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-hello-world:latest
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-hello-world:latest
