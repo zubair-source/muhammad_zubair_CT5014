@@ -63,5 +63,4 @@ jobs:
       with:
         context: .
         push: true
-        tags: |
-          ${{ secrets.DOCKER_USERNAME }}/zubairsource/ct-5014:latest
+        tags: ${{ secrets.DOCKER_USERNAME }}/zubairsource/ct-5014:latest
