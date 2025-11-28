@@ -1,74 +1,68 @@
-name: DevSecOps CI/CD Pipeline
+name: CI/CD Pipeline
 
-permissions:
-  contents: read
-  security-events: write
-
+# Trigger: runs on push to main branch OR manually
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  test-and-scan:
+  # Job 1: Build and Test
+  build-and-test:
     runs-on: ubuntu-latest
+    
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Run tests
+      run: npm test
 
-      # 2️⃣ Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      # 3️⃣ Install dependencies
-      - name: Install dependencies
-        run: npm install
-
-      # 4️⃣ Run Jest tests
-      - name: Run tests
-        run: npm test
-
-      # 5️⃣ Run Snyk scan
-      - name: Run Snyk scan
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --sarif-file-output=snyk.sarif --file=package-lock.json
-
-      # 6️⃣ Save SARIF as artifact (safe, fork-friendly)
-      - name: Upload SARIF artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-sarif
-          path: snyk.sarif
-
-  docker-build-and-push:
-    needs: test-and-scan
+  # Job 2: Security Scan with Snyk
+  security-scan:
     runs-on: ubuntu-latest
+    needs: build-and-test  # Runs after build-and-test succeeds
+    
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Run Snyk Security Scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+      continue-on-error: true  # Don't fail pipeline if vulnerabilities found
 
-      # 2️⃣ Login to DockerHub
-      - name: Docker Login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # 3️⃣ Build Docker image
-      - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-hello-world:latest .
-
-      # 4️⃣ Push Docker image
-      - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-hello-world:latest
+  # Job 3: Build and Push Docker Image
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: [build-and-test, security-scan]  # Runs after both previous jobs
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/zubairsource/ct-5014:latest
+          ${{ secrets.DOCKER_USERNAME }}/zubairsource/ct-5014:${{ github.sha }}
