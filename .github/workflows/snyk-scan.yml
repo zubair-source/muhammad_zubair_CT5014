@@ -63,4 +63,6 @@ jobs:
       with:
         context: .
         push: true
-        tags: zubairsource/ct-5014:latest
+        tags: |
+          zubairsource/ct-5014:latest
+          zubairsource/ct-5014:${{ github.sha }}
