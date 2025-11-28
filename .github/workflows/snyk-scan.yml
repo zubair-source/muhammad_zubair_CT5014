@@ -65,4 +65,3 @@ jobs:
         push: true
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/zubairsource/ct-5014:latest
-          ${{ secrets.DOCKER_USERNAME }}/zubairsource/ct-5014:${{ github.sha }}
